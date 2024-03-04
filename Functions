@@ -1,0 +1,124 @@
+create or replace
+FUNCTION cantidadCitasDoctor(vIdDoctor IN NUMBER, vFechaPorRevisar IN TIMESTAMP) RETURN NUMBER AS
+   vCount NUMBER;
+BEGIN
+   SELECT COUNT(*) INTO vCount
+   FROM tablas_citas.citas
+   WHERE idDoctor = vIdDoctor AND TRUNC(fecha) = TRUNC(vFechaPorRevisar);
+
+   RETURN vCount;
+END;
+
+-------------------------------------------------------------------------------------------------------------
+
+create or replace
+FUNCTION ClinicaDoctor(vDoctor IN NUMBER) RETURN VARCHAR AS 
+
+   vClinica varchar(50); 
+
+BEGIN 
+
+   SELECT clinica  INTO vClinica 
+
+   FROM tablas_citas.doctores 
+
+   WHERE idDoctor = vDoctor;  
+
+  
+
+   RETURN vClinica; 
+
+END;
+
+---------------------------------------------------------------------------------------------------------------
+
+create or replace
+FUNCTION DoctorCita(vCita IN NUMBER) RETURN NUMBER AS 
+
+   vDoctor NUMBER; 
+
+BEGIN 
+
+   SELECT idDoctor INTO vDoctor 
+
+   FROM tablas_citas.citas 
+
+   WHERE idCita = vCita;  
+
+  
+
+   RETURN vDoctor; 
+
+END
+
+----------------------------------------------------------------------------------------------------------------------
+
+create or replace
+FUNCTION existeCita(vCita IN Number) RETURN NUMBER AS 
+
+   vCount NUMBER; 
+
+BEGIN 
+
+   SELECT COUNT(*) INTO vCount 
+
+   FROM tablas_citas.citas 
+
+   WHERE idCita = vCita; 
+
+  
+
+   RETURN CASE WHEN vCount > 0 THEN 1 ELSE 0 END; 
+
+END;
+
+----------------------------------------------------------------------------------------------------------------
+
+create or replace
+FUNCTION existeEspecialidad(vEspecialidad IN VARCHAR2) RETURN NUMBER AS
+   vCount NUMBER;
+BEGIN
+   SELECT COUNT(*) INTO vCount
+   FROM tablas_citas.doctores
+   WHERE Especialidad = vEspecialidad;
+ 
+   RETURN CASE WHEN vCount > 0 THEN 1 ELSE 0 END;
+END;
+
+---------------------------------------------------------------------------------------------------------------
+
+create or replace
+FUNCTION existeMedicamento(vIdMedicamento IN NUMBER) RETURN NUMBER AS 
+
+   vCount NUMBER; 
+
+BEGIN 
+
+   SELECT COUNT(*) INTO vCount 
+
+   FROM tablas_recetas.medicamentos 
+
+   WHERE idMedicamento = vIdMedicamento; 
+
+  
+
+   RETURN CASE WHEN vCount > 0 THEN 1 ELSE 0 END; 
+
+END;
+
+----------------------------------------------------------------------------------------------------------------------
+
+create or replace
+FUNCTION existePaciente(vIdPaciente IN NUMBER) RETURN NUMBER AS
+   vCount NUMBER;
+BEGIN
+   SELECT COUNT(*) INTO vCount
+   FROM tablas_citas.pacientes
+   WHERE idPacientes = vIdPaciente;
+ 
+   RETURN CASE WHEN vCount > 0 THEN 1 ELSE 0 END;
+END;
+
+
+
+
