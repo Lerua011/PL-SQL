@@ -1,0 +1,412 @@
+create or replace
+PROCEDURE asignarReceta( 
+
+   pIdPeticion IN NUMBER, 
+
+   pIdCita IN NUMBER, 
+
+   pCantidad IN NUMBER, 
+
+   pIdInventario in NUMBER, 
+
+   pPudoConcertar OUT NUMBER 
+
+) AS 
+
+  pIdReceta NUMBER; 
+  vCurrentInventory NUMBER;
+  vRemainingInventory NUMBER;
+
+BEGIN 
+
+  SELECT NVL(MAX(idReceta), 0) + 1 INTO pIdReceta
+  from TABLAS_RECETAS.recetas;
+
+      INSERT INTO tablas_recetas.recetas (idReceta, idCita, cantidadRecetada, idinventario) 
+
+      VALUES (pIdReceta, pIdCita, pCantidad, pIdInventario); 
+
+      pPudoConcertar := 1; -- Appointment was successfully scheduled 
+
+      UPDATE tablas_recetas.peticiones 
+
+        SET estado = 1 
+
+        WHERE idPeticion = pIdPeticion; 
+        
+        -- Get the current inventory quantity
+   SELECT cantidadInventario INTO vCurrentInventory
+   FROM tablas_farmacias.inventario
+   WHERE idInventario = pIdInventario;
+
+   -- Calculate the remaining inventory quantity
+   vRemainingInventory := vCurrentInventory - pCantidad;
+
+   -- Update the inventory table
+   UPDATE tablas_farmacias.inventario
+   SET cantidadInventario = vRemainingInventory
+   WHERE idInventario = pIdInventario;
+
+   -- Commit the transaction
+   COMMIT;
+
+END;
+
+--------------------------------------------------------------------------------------------------------------------
+
+create or replace
+PROCEDURE asignarReceta2( 
+
+   pIdPeticion IN NUMBER, 
+
+   pIdCita IN NUMBER, 
+
+   pCantidad IN NUMBER, 
+
+   pIdInventario in NUMBER, 
+
+   pPudoConcertar OUT NUMBER, 
+   
+   pCantidadMedicina Out number
+
+) AS 
+
+  pIdReceta NUMBER; 
+  vCurrentInventory NUMBER;
+  vRemainingInventory NUMBER;
+
+BEGIN 
+
+ ppudoconcertar:= 0;
+  SELECT NVL(MAX(idReceta), 0) + 1 INTO pIdReceta
+  from TABLAS_RECETAS.recetas;
+  
+          -- Get the current inventory quantity
+   SELECT cantidadInventario INTO vCurrentInventory
+   FROM tablas_farmacias.inventario
+   WHERE idInventario = pIdInventario;
+   
+   pCantidadMedicina := pCantidad - vCurrentInventory;
+   
+   if vCurrentInventory > 0 then
+
+      INSERT INTO tablas_recetas.recetas (idReceta, idCita, cantidadRecetada, idinventario) 
+
+      VALUES (pIdReceta, pIdCita, vcurrentinventory, pIdInventario); 
+
+      if pCantidadMedicina < 1 then
+       pPudoConcertar := 1; -- Appointment was successfully scheduled
+
+      UPDATE tablas_recetas.peticiones 
+
+        SET estado = 1 
+
+        WHERE idPeticion = pIdPeticion; 
+        
+        end if;
+        end if;
+
+   -- Calculate the remaining inventory quantity
+   vRemainingInventory := 0;
+
+   -- Update the inventory table
+   UPDATE tablas_farmacias.inventario
+   SET cantidadInventario = vRemainingInventory
+   WHERE idInventario = pIdInventario;
+
+   -- Commit the transaction
+   COMMIT;
+
+END;
+
+-----------------------------------------------------------------------------------------------------------
+
+create or replace
+PROCEDURE MoverRechazadosRecetas( 
+
+   pIdPeticion IN NUMBER, 
+
+   pIdCita IN NUMBER, 
+
+  pIdMedicamento IN NUMBER, 
+
+ pCantidadS IN NUMBER, 
+
+pCantidadR IN NUMBER 
+
+  ) AS 
+
+  
+
+BEGIN 
+
+   -- Insert rejected petitions into the 'rechazados' table 
+
+   INSERT INTO tablas_recetas.rechazados(idPeticion, idCita, idMedicamento, cantidadS, cantidadR) 
+
+   VALUES (pIdPeticion, pIdCita, pIdMedicamento, pCantidadS, pCantidadR); 
+
+  
+
+   -- Commit the transaction 
+
+   COMMIT; 
+
+END;
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+create or replace
+PROCEDURE rechazarReceta(pIdPeticion IN NUMBER) AS 
+
+BEGIN 
+
+  
+
+   -- Update the state of the given petition to rejected 
+
+   UPDATE tablas_recetas.peticiones 
+
+   SET estado = -1  -- Use an appropriate code for rejected state, e.g., -1 
+
+   WHERE idPeticion = pIdPeticion; 
+
+  
+
+   COMMIT;  -- Commit the transaction 
+
+END; 
+
+------------------------------------------------------------------------------------------------------------------------------------------
+
+create or replace
+procedure ReservaReceta as 
+
+-- Cursor que obtiene las peticiones 
+
+cursor cPeticiones is  
+
+   select idPeticion, 
+
+          idCita, 
+
+          idMedicamento, 
+
+          cantidad, 
+
+          estado 
+
+   from tablas_recetas.peticiones 
+
+   where estado = 0 
+
+   order by 1; 
+
+-- Cursor que obtiene las Farmacias de la misma clinica que el doctor de la Cita 
+
+cursor cFarmacias(VClinica varchar) is  
+
+   select idFarmacia 
+
+   from tablas_farmacias.farmacias 
+
+   where clinica = VClinica 
+
+   order by 1; 
+
+-- Cursor que obtiene los Inventartios de las Farmacias 
+
+cursor cInventario(VInventario number, VMedicamento number) is  
+
+   select idInventario,  
+
+	  idMedicamento, 
+
+	  idFarmacia, 
+
+	 cantidadInventario 
+
+   from tablas_farmacias.inventario 
+
+   where idFarmacia = VInventario 
+   and idMedicamento = VMedicamento; 
+
+ 
+
+-- Registro para recorrer el cursor de Farmacias 
+
+rCFarmacias cFarmacias%rowType; 
+
+-- Registro para recorrer el cursor de Peticiones 
+
+rCPeticiones cPeticiones%rowType; 
+
+-- Registro para recorrer el cursor de Inventario 
+
+rCInventario cInventario%rowType; 
+
+-- Indicador si la cita se pudo concertar (boolena) 
+
+vRecetaConcertada number; 
+
+-- Doctor que atendió esa cita 
+
+VDoctor number; 
+
+-- Clinica a la que pertenece el doctor 
+
+VClinica varchar(50); 
+
+-- Indicador de si la cita se pudo concertar 
+
+vPudoConcertar number; 
+
+-- Cantidad de citas de un doctor en una fecha particular 
+
+vCantidadCitas number; 
+
+-- Cantidad de medicina en la peticion
+
+vCantidadMedicina number; 
+ 
+-- Cantidad de medicina faltante para completar la peticion
+
+vCantidadFaltante number;   
+
+ 
+Begin  
+
+   -- Para cada peticion  -- cursor trae peticiones con estado 0 procesado por FOR   
+
+   for rCPeticiones in cPeticiones  
+
+        loop 
+        vRecetaConcertada := 0; 
+        
+        vCantidadMedicina := rCPeticiones.cantidad;
+
+      --si existeMedicamento(peticion.idMedicamento) 
+
+      if existeMedicamento(rCPeticiones.idMedicamento) = 1 then  
+
+         --si existeCita(peticion.idCita) 
+
+         if existeCita(rCPeticiones.idCita) = 1 then 
+
+            --Encontrar al doctor al que pertenece la cita 
+
+            VDoctor := DoctorCita(rCPeticiones.idCita); 
+
+            --Encontrar la Clinica a la que pertenece el Doctor 
+
+            VClinica := ClinicaDoctor(VDoctor); 
+
+            -- Encontrar las farmacias que pertenecen a esa clinica 
+
+            Open cFarmacias(VClinica); --> Clinica del doctor 
+
+            --inicia sin receta
+            
+              vRecetaConcertada := 0; 
+
+            --recorrer el cursor de las farmacias 
+
+            loop 
+
+               --obtiene la siguiente farmacia 
+
+              fetch cFarmacias into rCFarmacias; 
+
+               --se sale cuando no hay más Farmacias 
+
+               exit when cFarmacias%notFound; 
+
+            Open cInventario(rCFarmacias.idFarmacia,rCPeticiones.idMedicamento); 
+            
+              vRecetaConcertada := 0; 
+
+            	Loop 
+
+              Fetch cInventario into rCInventario; 
+
+              exit when cInventario%notFound; 
+
+              if vCantidadMedicina <= rCInventario.cantidadInventario then 
+
+              -- intenta asignar la receta en la, resultado booleano en pudoConcertar 
+
+                  asignarReceta(rCPeticiones.idPeticion, rCPeticiones.idCita, vCantidadMedicina, rCInventario.idInventario, vPudoConcertar); 
+
+                   vRecetaConcertada := vPudoConcertar; 
+
+                    if vRecetaConcertada = 1 then 
+
+                      exit; 
+
+                    end if; 
+
+                  elsif vCantidadMedicina >=  rCInventario.cantidadInventario then 
+
+                    asignarReceta2(rCPeticiones.idPeticion, rCPeticiones.idCita, vCantidadMedicina, rCInventario.idInventario, vPudoConcertar, vCantidadMedicina); 
+
+                    vRecetaConcertada := vPudoConcertar; 
+
+                  --terminar si la receta se concertó 
+
+                  if vRecetaConcertada = 1 then 
+
+                     exit; 
+
+                    end if; 
+
+                  end if; 
+
+                 end loop; -- loop inventario 
+
+                Close cInventario; 
+
+               --terminar si la cita se concertó 
+
+               if vRecetaConcertada = 1 then 
+
+                  exit; 
+
+               end if; 
+
+            end loop; -- loop de Farmacias 
+
+            --cerrar el cursor de doctores 
+
+            close cFarmacias; 
+            
+            vcantidadfaltante := rCPeticiones.cantidad - vCantidadMedicina;
+
+            --se rechaza la cita después de explorar todas las farmacias 
+
+            if vRecetaConcertada = 0 then 
+
+               rechazarReceta(rCPeticiones.idPeticion); 
+
+               MoverRechazadosRecetas(rCPeticiones.idPeticion, rCPeticiones.idCita, rCPeticiones.idMedicamento, rCPeticiones.cantidad, vcantidadmedicina); 
+
+            end if;  
+
+         else -- existeCita
+
+             rechazarReceta(rCPeticiones.idPeticion); 
+
+             MoverRechazadosRecetas(rCPeticiones.idPeticion, rCPeticiones.idCita, rCPeticiones.idMedicamento, rCPeticiones.cantidad, rCPeticiones.cantidad); 
+
+         end if; 
+
+      else -- existeMedicamento 
+
+         rechazarReceta(rCPeticiones.idPeticion); 
+
+         MoverRechazadosRecetas(rCPeticiones.idPeticion, rCPeticiones.idCita, rCPeticiones.idMedicamento, rCPeticiones.cantidad, rCPeticiones.cantidad); 
+
+      end if; 
+
+   end loop; 
+
+end;
